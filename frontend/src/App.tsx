@@ -881,7 +881,15 @@ export default function App() {
                   {getTypeBadge(activeSession.type)} Interview &middot; {activeSession.role}
                 </h3>
               </div>
-              <div className="text-right">
+              <div className="flex items-center gap-3">
+                {activeSession.questionsCount === -1 && (
+                  <button
+                    onClick={endInterviewManually}
+                    className="px-3 py-1 text-xs font-bold text-red-200 hover:text-white bg-red-950/30 hover:bg-red-650/40 rounded-lg border border-red-500/20 shadow-md transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 animate-fadeIn"
+                  >
+                    <span>🔴 End Practice</span>
+                  </button>
+                )}
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-500/20 bg-indigo-950/40 text-indigo-300">
                   {activeSession.questionsCount === -1 
                     ? `Question ${currentQuestionIndex + 1}`
