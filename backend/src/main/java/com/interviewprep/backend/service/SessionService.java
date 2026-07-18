@@ -241,6 +241,7 @@ public class SessionService {
                 .startedAt(session.getStartedAt())
                 .endedAt(session.getEndedAt())
                 .overallScore(session.getOverallScore())
+                .questionsCount(session.getQuestionsCount())
                 .questions(qDtos)
                 .build();
     }

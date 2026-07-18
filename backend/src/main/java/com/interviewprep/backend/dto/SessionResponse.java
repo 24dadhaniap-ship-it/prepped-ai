@@ -18,5 +18,6 @@ public class SessionResponse {
     private LocalDateTime startedAt;
     private LocalDateTime endedAt;
     private Integer overallScore;
+    private Integer questionsCount;
     private List<QuestionDto> questions;
 }
