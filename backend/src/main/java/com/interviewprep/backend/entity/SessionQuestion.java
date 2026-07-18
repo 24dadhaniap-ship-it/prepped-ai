@@ -23,10 +23,10 @@ public class SessionQuestion {
     @JoinColumn(name = "question_id", nullable = false)
     private Question question;
 
-    @Column(name = "user_answer", length = 4000)
+    @Column(name = "user_answer", columnDefinition = "TEXT")
     private String userAnswer;
 
-    @Column(name = "ai_feedback", length = 4000)
+    @Column(name = "ai_feedback", columnDefinition = "TEXT")
     private String aiFeedback;
 
     private Integer score;
