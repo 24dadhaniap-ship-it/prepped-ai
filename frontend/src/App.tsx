@@ -196,6 +196,32 @@ export default function App() {
     };
   }, [googleClientId, token]);
 
+  const handleGoogleLoginSimulated = async (email: string, name: string) => {
+    setLoading(true);
+    setAuthError(null);
+    
+    // Construct a simulated base64url encoded JWT
+    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+    const payload = btoa(JSON.stringify({ email, name, sub: email }));
+    const simulatedToken = `${header}.${payload}.signature`;
+    
+    try {
+      const res = await api.auth.google(simulatedToken);
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('userEmail', res.email);
+      localStorage.setItem('userName', res.name);
+      localStorage.setItem('userTargetRole', res.targetRole || '');
+      localStorage.setItem('userExperienceLevel', res.experienceLevel || '');
+      localStorage.setItem('userId', res.userId);
+      
+      setToken(res.token);
+    } catch (err: any) {
+      setAuthError(err.message || 'Authentication failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleLogout = () => {
     localStorage.clear();
     setToken(null);
@@ -354,6 +380,21 @@ export default function App() {
           <div className="space-y-6 py-4 flex flex-col items-center animate-fadeIn">
             {/* Real Google Sign-In Button Container */}
             <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
+            
+            {/* OR Divider */}
+            <div className="w-full flex items-center justify-between gap-3 text-slate-600 text-xs my-2 select-none">
+              <span className="h-px bg-slate-800 flex-1"></span>
+              <span>OR</span>
+              <span className="h-px bg-slate-800 flex-1"></span>
+            </div>
+
+            {/* Guest/Demo Login Button */}
+            <button
+              onClick={() => handleGoogleLoginSimulated("guest@prepped.ai", "Guest User")}
+              className="w-full py-3 px-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 hover:bg-indigo-900/30 text-indigo-300 font-semibold transition-all shadow-lg hover:shadow-indigo-550/5 active:scale-[0.98] cursor-pointer text-xs flex items-center justify-center gap-2"
+            >
+              <span>🚀 Access as Guest (Demo Mode)</span>
+            </button>
             
             <p className="text-[11px] text-slate-500 text-center leading-relaxed">
               Secure authentication powered by Google. By continuing, you agree to Prepped.AI's terms of service and privacy policy.
