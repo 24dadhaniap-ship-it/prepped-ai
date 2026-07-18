@@ -39,10 +39,10 @@ export default function App() {
   const [wizardLength, setWizardLength] = useState<number>(-1);
   const [geminiKey, setGeminiKey] = useState<string>(localStorage.getItem('gemini_api_key') || '');
 
-  // Google Sign-In state variables
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
-  const [customEmail, setCustomEmail] = useState('');
-  const [customName, setCustomName] = useState('');
+  // Google Sign-In Client ID state
+  const [googleClientId, setGoogleClientId] = useState<string>(
+    localStorage.getItem('google_client_id') || '1096752762295-d2u9l9f94k1f8j1m785i01nsh6q05rbe.apps.googleusercontent.com'
+  );
 
   // Accordion state for feedback
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
@@ -138,32 +138,63 @@ export default function App() {
     }
   };
 
-  const handleGoogleLogin = async (email: string, name: string) => {
-    setLoading(true);
-    setAuthError(null);
-    setShowGoogleModal(false);
+  // Programmatically initialize Google Identity Services and render the official button
+  useEffect(() => {
+    const initializeGoogle = () => {
+      if ((window as any).google && (window as any).google.accounts && googleClientId.trim() && !token) {
+        try {
+          (window as any).google.accounts.id.initialize({
+            client_id: googleClientId.trim(),
+            callback: async (response: any) => {
+              setLoading(true);
+              setAuthError(null);
+              try {
+                const res = await api.auth.google(response.credential);
+                localStorage.setItem('token', res.token);
+                localStorage.setItem('userEmail', res.email);
+                localStorage.setItem('userName', res.name);
+                localStorage.setItem('userTargetRole', res.targetRole || '');
+                localStorage.setItem('userExperienceLevel', res.experienceLevel || '');
+                localStorage.setItem('userId', res.userId);
+                
+                setToken(res.token);
+              } catch (err: any) {
+                setAuthError(err.message || 'Google authentication failed.');
+              } finally {
+                setLoading(false);
+              }
+            },
+          });
+          
+          const btnElem = document.getElementById("google-signin-btn");
+          if (btnElem) {
+            btnElem.innerHTML = ""; // Clear old button
+            (window as any).google.accounts.id.renderButton(
+              btnElem,
+              { theme: "outline", size: "large", width: 360 }
+            );
+          }
+        } catch (e) {
+          console.error("Google script initialization error: ", e);
+        }
+      }
+    };
+
+    // Small delay to ensure the DOM elements are mounted and available for rendering
+    const timer = setTimeout(initializeGoogle, 200);
     
-    // Construct a simulated base64url encoded JWT
-    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-    const payload = btoa(JSON.stringify({ email, name, sub: email }));
-    const simulatedToken = `${header}.${payload}.signature`;
-    
-    try {
-      const res = await api.auth.google(simulatedToken);
-      localStorage.setItem('token', res.token);
-      localStorage.setItem('userEmail', res.email);
-      localStorage.setItem('userName', res.name);
-      localStorage.setItem('userTargetRole', res.targetRole || '');
-      localStorage.setItem('userExperienceLevel', res.experienceLevel || '');
-      localStorage.setItem('userId', res.userId);
-      
-      setToken(res.token);
-    } catch (err: any) {
-      setAuthError(err.message || 'Google authentication failed.');
-    } finally {
-      setLoading(false);
+    // Listen for script load just in case it loads late
+    const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+    if (script) {
+      script.addEventListener('load', initializeGoogle);
     }
-  };
+    return () => {
+      clearTimeout(timer);
+      if (script) {
+        script.removeEventListener('load', initializeGoogle);
+      }
+    };
+  }, [googleClientId, token]);
 
   const handleLogout = () => {
     localStorage.clear();
@@ -320,23 +351,33 @@ export default function App() {
             </div>
           )}
 
-          <div className="space-y-6 py-4">
-            <button
-              onClick={() => setShowGoogleModal(true)}
-              className="w-full py-3.5 px-4 rounded-xl border border-white/10 bg-slate-900/60 hover:bg-slate-800 text-slate-200 font-semibold transition-all shadow-lg hover:shadow-indigo-550/5 active:scale-[0.98] cursor-pointer text-sm flex items-center justify-center gap-3"
-            >
-              <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-                <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-              </svg>
-              <span>Continue with Google</span>
-            </button>
+          <div className="space-y-6 py-4 flex flex-col items-center animate-fadeIn">
+            {/* Real Google Sign-In Button Container */}
+            <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
             
             <p className="text-[11px] text-slate-500 text-center leading-relaxed">
               Secure authentication powered by Google. By continuing, you agree to Prepped.AI's terms of service and privacy policy.
             </p>
+
+            {/* Google Client ID Configuration Field */}
+            <div className="w-full mt-4 p-4 rounded-xl bg-slate-900/60 border border-white/5 space-y-3 text-left">
+              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                Google OAuth Client ID Configuration
+              </label>
+              <input
+                type="text"
+                placeholder="Enter your Client ID..."
+                value={googleClientId}
+                onChange={e => {
+                  setGoogleClientId(e.target.value);
+                  localStorage.setItem('google_client_id', e.target.value);
+                }}
+                className="w-full px-3 py-2 rounded-lg glass-input text-xs text-slate-300 placeholder-slate-500 focus:outline-none"
+              />
+              <p className="text-[10px] text-slate-500 leading-normal">
+                To run Google login on your own domain, create a Web Client ID in the <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">Google Cloud Console</a> and whitelist your URL: <code>https://prepped-ai-pratham.surge.sh</code> in Authorized JavaScript Origins.
+              </p>
+            </div>
           </div>
         </div>
       </div>
@@ -1095,85 +1136,7 @@ export default function App() {
 
       </main>
 
-      {/* Google Account Selector Overlay */}
-      {showGoogleModal && (
-        <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-sm rounded-2xl bg-white text-slate-800 p-6 shadow-2xl border border-slate-200 relative animate-fadeIn">
-            
-            <div className="flex flex-col items-center mb-6">
-              <svg className="h-6 mb-3" viewBox="0 0 74 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M9.24 18.2C4.1 18.2 0 14.07 0 9.1S4.1 0 9.24 0c2.81 0 4.81 1.1 6.38 2.6l-2.25 2.25c-1.12-1.07-2.63-1.85-4.13-1.85-3.35 0-6.02 2.69-6.02 6.1s2.67 6.1 6.02 6.1c2.51 0 3.93-1.01 4.85-1.92.74-.75 1.18-1.82 1.32-3.23H9.24v-3h8.49c.08.43.14.92.14 1.46 0 1.73-.48 3.73-1.8 5.06-1.28 1.34-2.92 2.13-5.83 2.13z" fill="#4285F4"/>
-                <path d="M26.2 12.3c0 3.77-2.82 6.5-6.32 6.5s-6.32-2.73-6.32-6.5c0-3.8 2.82-6.5 6.32-6.5s6.32 2.7 6.32 6.5zm-3.08 0c0-2.43-1.72-4.04-3.24-4.04s-3.24 1.61-3.24 4.04c0 2.4 1.72 4.01 3.24 4.01s3.24-1.61 3.24-4.01z" fill="#EA4335"/>
-                <path d="M40.3 12.3c0 3.77-2.82 6.5-6.32 6.5s-6.32-2.73-6.32-6.5c0-3.8 2.82-6.5 6.32-6.5s6.32 2.7 6.32 6.5zm-3.08 0c0-2.43-1.72-4.04-3.24-4.04s-3.24 1.61-3.24 4.04c0 2.4 1.72 4.01 3.24 4.01s3.24-1.61 3.24-4.01z" fill="#FBBC05"/>
-                <path d="M53.8 6.2v11.3c0 4.66-2.74 6.58-5.99 6.58-3.04 0-4.87-2.03-5.56-3.73l2.69-1.12c.48 1.15 1.68 2.5 2.87 2.5 1.8 0 2.92-1.12 2.92-3.21v-.98h-.1c-.59.72-1.72 1.34-3.15 1.34-2.98 0-5.74-2.58-5.74-6.44 0-3.88 2.76-6.49 5.74-6.49 1.43 0 2.56.63 3.15 1.32h.1V6.2h2.98zm-2.87 6.13c0-2.38-1.68-4.01-3.12-4.01-1.47 0-3.15 1.63-3.15 4.01 0 2.36 1.68 3.96 3.15 3.96 1.44 0 3.12-1.6 3.12-3.96z" fill="#4285F4"/>
-                <path d="M58.3.6h3.12v17.6H58.3V.6z" fill="#34A853"/>
-                <path d="M70.9 14.5l2.45 1.63c-.8.1.18-1.92-2.18-3.83-2.67 0-5.06-2.06-5.06-6.44 0-4.13 2.9-6.5 6.02-6.5 3.15 0 4.96 2.43 4.96 6.5v.69H66.2c.16 2.19 1.83 3.55 3.53 3.55 1.31 0 2.21-.66 2.84-1.41l2.45 1.63c-.82 1.23-2.3 2.19-5.29 2.19-3.66 0-6.19-2.61-6.19-6.5 0-4.13 2.64-6.5 5.86-6.5 3.32 0 4.67 2.49 5.2 3.93l.31.78-8.83 3.65c.67 1.34 1.73 2.01 3.23 2.01 1.48 0 2.47-.73 3.16-2.01z" fill="#EA4335"/>
-              </svg>
-              <h2 className="text-lg font-semibold text-slate-700">Choose an account</h2>
-              <p className="text-xs text-slate-500 mt-1">to continue to Prepped.AI</p>
-            </div>
 
-            <div className="space-y-3 mb-6 max-h-60 overflow-y-auto">
-              {[
-                { name: "Pratham Dadhania", email: "prathamdadhania06@gmail.com", avatar: "P" },
-                { name: "Test Developer", email: "developer@gmail.com", avatar: "D" },
-                { name: "Guest User", email: "guest@gmail.com", avatar: "G" }
-              ].map((acc, index) => (
-                <button
-                  key={index}
-                  onClick={() => handleGoogleLogin(acc.email, acc.name)}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-slate-100 transition-all text-left border border-slate-100 cursor-pointer"
-                >
-                  <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-sm">
-                    {acc.avatar}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-slate-800 truncate">{acc.name}</p>
-                    <p className="text-[10px] text-slate-500 truncate">{acc.email}</p>
-                  </div>
-                </button>
-              ))}
-            </div>
-
-            <div className="border-t border-slate-150 pt-4 mb-4">
-              <p className="text-xs font-semibold text-slate-500 mb-2">Or enter another email:</p>
-              <div className="space-y-3">
-                <input
-                  type="text"
-                  placeholder="Your Full Name"
-                  value={customName}
-                  onChange={e => setCustomName(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-                <input
-                  type="email"
-                  placeholder="name@gmail.com"
-                  value={customEmail}
-                  onChange={e => setCustomEmail(e.target.value)}
-                  className="w-full px-3 py-2 rounded-lg border border-slate-300 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-1 focus:ring-indigo-500"
-                />
-                <button
-                  onClick={() => {
-                    if (customEmail.trim() && customName.trim()) {
-                      handleGoogleLogin(customEmail, customName);
-                    }
-                  }}
-                  className="w-full py-2 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-xs transition-all cursor-pointer"
-                >
-                  Login with Custom Account
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={() => setShowGoogleModal(false)}
-              className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-all cursor-pointer"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
-      )}
 
       {/* Footer */}
       <footer className="py-6 border-t border-white/5 text-center text-xs text-slate-500">
