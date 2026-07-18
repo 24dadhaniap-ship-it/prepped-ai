@@ -34,14 +34,14 @@ public class GeminiService {
     /**
      * Generates a list of questions using Gemini API or mock fallback.
      */
-    public List<Map<String, String>> generateQuestions(String role, String difficulty, String type, String experienceLevel, int count, String clientApiKey) {
+    public List<Map<String, String>> generateQuestions(String role, String difficulty, String type, String experienceLevel, int count, List<String> existingQuestions, String clientApiKey) {
         String keyToUse = (clientApiKey != null && !clientApiKey.trim().isEmpty()) ? clientApiKey : this.apiKey;
         if (keyToUse == null || keyToUse.trim().isEmpty() || keyToUse.equals("MOCK")) {
             log.info("Gemini API Key is not configured. Falling back to mock question generation.");
             return generateMockQuestions(role, difficulty, type, count);
         }
 
-        String prompt = String.format(
+        StringBuilder promptBuilder = new StringBuilder(String.format(
                 "Generate exactly %d interview questions for a %s interview. " +
                 "Target Role: %s. Difficulty: %s. Candidate Experience Level: %s. " +
                 "Make the questions highly relevant, realistic, and challenging. " +
@@ -49,7 +49,15 @@ public class GeminiService {
                 "For behavioral, ask STAR-based situational questions. " +
                 "Make sure each question has a 'text' and a 'topic'.",
                 count, type, role, difficulty, experienceLevel
-        );
+        ));
+
+        if (existingQuestions != null && !existingQuestions.isEmpty()) {
+            promptBuilder.append("\n\nCRITICAL: Do not duplicate, rephrase, or repeat any of the following questions that have already been asked in this session:\n");
+            for (String eq : existingQuestions) {
+                promptBuilder.append("- ").append(eq).append("\n");
+            }
+        }
+        String prompt = promptBuilder.toString();
 
         // Build Gemini Request Payload with structured JSON schema
         try {

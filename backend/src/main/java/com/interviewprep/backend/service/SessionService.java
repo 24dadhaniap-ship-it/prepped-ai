@@ -69,6 +69,7 @@ public class SessionService {
                 request.getType().name(),
                 user.getExperienceLevel() != null ? user.getExperienceLevel() : "Mid-Level",
                 initialCount,
+                new ArrayList<>(), // No existing questions at start
                 clientApiKey
         );
 
@@ -145,43 +146,22 @@ public class SessionService {
         // Trigger Async Evaluation using EvaluationService
         evaluationService.evaluateAnswerAsync(targetSq.getId(), userAnswer);
 
-        // If endless, pre-generate next batch of questions when running low (e.g. only 2 questions remaining)
+        // If endless, pre-generate next batch of questions asynchronously when running low (remaining <= 5)
         if (session.getQuestionsCount() == -1) {
             int nextOrderIndex = sqs.size();
             int currentOrderIndex = targetSq.getOrderIndex();
             
-            if (nextOrderIndex - currentOrderIndex <= 2) {
-                log.info("Endless session {} running low on questions (remaining: {}). Pre-generating next batch.", 
-                        session.getId(), (nextOrderIndex - currentOrderIndex));
-                List<Map<String, String>> rawQuestions = geminiService.generateQuestions(
-                        session.getRole(),
-                        session.getDifficulty().name(),
-                        session.getType().name(),
-                        user.getExperienceLevel() != null ? user.getExperienceLevel() : "Mid-Level",
-                        10, // Pre-generate 10 more questions
+            if (nextOrderIndex - currentOrderIndex <= 5) {
+                // Collect existing questions to prevent duplicates
+                List<String> existingQuestions = sqs.stream()
+                        .map(sq -> sq.getQuestion().getText())
+                        .toList();
+
+                evaluationService.preGenerateQuestionsAsync(
+                        session.getId(),
+                        existingQuestions,
                         session.getGeminiApiKey()
                 );
-
-                int indexOffset = 0;
-                for (Map<String, String> rawQ : rawQuestions) {
-                    Question question = Question.builder()
-                            .text(rawQ.get("text"))
-                            .topic(rawQ.get("topic"))
-                            .difficulty(session.getDifficulty())
-                            .type(session.getType())
-                            .build();
-
-                    Question savedQ = questionRepository.save(question);
-
-                    SessionQuestion newSq = SessionQuestion.builder()
-                            .session(session)
-                            .question(savedQ)
-                            .orderIndex(nextOrderIndex + (indexOffset++))
-                            .build();
-
-                    sessionQuestionRepository.save(newSq);
-                    sqs.add(newSq);
-                }
             }
         }
 

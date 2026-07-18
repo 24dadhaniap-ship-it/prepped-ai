@@ -4,8 +4,10 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.interviewprep.backend.entity.SessionQuestion;
 import com.interviewprep.backend.entity.InterviewSession;
+import com.interviewprep.backend.entity.Question;
 import com.interviewprep.backend.repository.SessionQuestionRepository;
 import com.interviewprep.backend.repository.InterviewSessionRepository;
+import com.interviewprep.backend.repository.QuestionRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
@@ -13,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Slf4j
@@ -22,15 +25,18 @@ public class EvaluationService {
     private final GeminiService geminiService;
     private final SessionQuestionRepository sessionQuestionRepository;
     private final InterviewSessionRepository interviewSessionRepository;
+    private final QuestionRepository questionRepository;
     private final ObjectMapper objectMapper;
 
     public EvaluationService(GeminiService geminiService,
                              SessionQuestionRepository sessionQuestionRepository,
                              InterviewSessionRepository interviewSessionRepository,
+                             QuestionRepository questionRepository,
                              ObjectMapper objectMapper) {
         this.geminiService = geminiService;
         this.sessionQuestionRepository = sessionQuestionRepository;
         this.interviewSessionRepository = interviewSessionRepository;
+        this.questionRepository = questionRepository;
         this.objectMapper = objectMapper;
     }
 
@@ -107,6 +113,58 @@ public class EvaluationService {
             session.setOverallScore(totalScore / count);
             interviewSessionRepository.save(session);
             log.info("Session {} has been completed automatically with overall score: {}", sessionId, session.getOverallScore());
+        }
+    }
+
+    @Async
+    @Transactional
+    public void preGenerateQuestionsAsync(UUID sessionId, List<String> existingQuestions, String clientApiKey) {
+        try {
+            InterviewSession session = interviewSessionRepository.findById(sessionId)
+                    .orElseThrow(() -> new IllegalArgumentException("Session not found: " + sessionId));
+            
+            // Check if we already have enough questions to prevent duplicate async runs
+            List<SessionQuestion> sqs = sessionQuestionRepository.findBySessionOrderByOrderIndexAsc(session);
+            long unansweredCount = sqs.stream().filter(sq -> sq.getUserAnswer() == null).count();
+            if (unansweredCount > 5) {
+                // Already buffered enough questions, skip
+                return;
+            }
+
+            log.info("Async generating next batch of 10 questions for session {}", sessionId);
+            List<Map<String, String>> rawQuestions = geminiService.generateQuestions(
+                    session.getRole(),
+                    session.getDifficulty().name(),
+                    session.getType().name(),
+                    "Mid-Level",
+                    10, // Pre-generate next 10 questions
+                    existingQuestions,
+                    clientApiKey
+            );
+
+            int nextOrderIndex = sqs.size();
+            int indexOffset = 0;
+            for (Map<String, String> rawQ : rawQuestions) {
+                Question question = Question.builder()
+                        .text(rawQ.get("text"))
+                        .topic(rawQ.get("topic"))
+                        .difficulty(session.getDifficulty())
+                        .type(session.getType())
+                        .build();
+
+                Question savedQ = questionRepository.save(question);
+
+                SessionQuestion newSq = SessionQuestion.builder()
+                        .session(session)
+                        .question(savedQ)
+                        .orderIndex(nextOrderIndex + (indexOffset++))
+                        .build();
+
+                sessionQuestionRepository.save(newSq);
+            }
+            log.info("Successfully appended 10 new questions asynchronously to session {}", sessionId);
+        } catch (Exception e) {
+            log.error("Failed to pre-generate questions asynchronously for session " + sessionId, e);
         }
     }
 }
