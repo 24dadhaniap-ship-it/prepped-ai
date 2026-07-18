@@ -39,10 +39,14 @@ export default function App() {
   const [wizardLength, setWizardLength] = useState<number>(-1);
   const [geminiKey, setGeminiKey] = useState<string>(localStorage.getItem('gemini_api_key') || '');
 
-  // Google Sign-In Client ID state
-  const [googleClientId, setGoogleClientId] = useState<string>(
-    localStorage.getItem('google_client_id') || '1096752762295-d2u9l9f94k1f8j1m785i01nsh6q05rbe.apps.googleusercontent.com'
-  );
+  const [authMode, setAuthMode] = useState<'login' | 'signup'>('login');
+  
+  // Auth inputs
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
+  const [targetRole, setTargetRole] = useState('Backend Java Developer');
+  const [experienceLevel, setExperienceLevel] = useState('Mid-Level');
 
   // Accordion state for feedback
   const [expandedQuestionId, setExpandedQuestionId] = useState<string | null>(null);
@@ -138,75 +142,12 @@ export default function App() {
     }
   };
 
-  // Programmatically initialize Google Identity Services and render the official button
-  useEffect(() => {
-    const initializeGoogle = () => {
-      if ((window as any).google && (window as any).google.accounts && googleClientId.trim() && !token) {
-        try {
-          (window as any).google.accounts.id.initialize({
-            client_id: googleClientId.trim(),
-            callback: async (response: any) => {
-              setLoading(true);
-              setAuthError(null);
-              try {
-                const res = await api.auth.google(response.credential);
-                localStorage.setItem('token', res.token);
-                localStorage.setItem('userEmail', res.email);
-                localStorage.setItem('userName', res.name);
-                localStorage.setItem('userTargetRole', res.targetRole || '');
-                localStorage.setItem('userExperienceLevel', res.experienceLevel || '');
-                localStorage.setItem('userId', res.userId);
-                
-                setToken(res.token);
-              } catch (err: any) {
-                setAuthError(err.message || 'Google authentication failed.');
-              } finally {
-                setLoading(false);
-              }
-            },
-          });
-          
-          const btnElem = document.getElementById("google-signin-btn");
-          if (btnElem) {
-            btnElem.innerHTML = ""; // Clear old button
-            (window as any).google.accounts.id.renderButton(
-              btnElem,
-              { theme: "outline", size: "large", width: 360 }
-            );
-          }
-        } catch (e) {
-          console.error("Google script initialization error: ", e);
-        }
-      }
-    };
-
-    // Small delay to ensure the DOM elements are mounted and available for rendering
-    const timer = setTimeout(initializeGoogle, 200);
-    
-    // Listen for script load just in case it loads late
-    const script = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
-    if (script) {
-      script.addEventListener('load', initializeGoogle);
-    }
-    return () => {
-      clearTimeout(timer);
-      if (script) {
-        script.removeEventListener('load', initializeGoogle);
-      }
-    };
-  }, [googleClientId, token]);
-
-  const handleGoogleLoginSimulated = async (email: string, name: string) => {
-    setLoading(true);
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
     setAuthError(null);
-    
-    // Construct a simulated base64url encoded JWT
-    const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-    const payload = btoa(JSON.stringify({ email, name, sub: email }));
-    const simulatedToken = `${header}.${payload}.signature`;
-    
+    setLoading(true);
     try {
-      const res = await api.auth.google(simulatedToken);
+      const res = await api.auth.login({ email, password });
       localStorage.setItem('token', res.token);
       localStorage.setItem('userEmail', res.email);
       localStorage.setItem('userName', res.name);
@@ -216,7 +157,34 @@ export default function App() {
       
       setToken(res.token);
     } catch (err: any) {
-      setAuthError(err.message || 'Authentication failed.');
+      setAuthError(err.message || 'Login failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAuthError(null);
+    setLoading(true);
+    try {
+      const res = await api.auth.signup({
+        email,
+        password,
+        name,
+        targetRole,
+        experienceLevel
+      });
+      localStorage.setItem('token', res.token);
+      localStorage.setItem('userEmail', res.email);
+      localStorage.setItem('userName', res.name);
+      localStorage.setItem('userTargetRole', res.targetRole || '');
+      localStorage.setItem('userExperienceLevel', res.experienceLevel || '');
+      localStorage.setItem('userId', res.userId);
+      
+      setToken(res.token);
+    } catch (err: any) {
+      setAuthError(err.message || 'Registration failed. Try a different email.');
     } finally {
       setLoading(false);
     }
@@ -227,6 +195,9 @@ export default function App() {
     setToken(null);
     setUser(null);
     setView('dashboard');
+    setEmail('');
+    setPassword('');
+    setName('');
   };
 
   const startNewInterview = async (e: React.FormEvent) => {
@@ -377,48 +348,119 @@ export default function App() {
             </div>
           )}
 
-          <div className="space-y-6 py-4 flex flex-col items-center animate-fadeIn">
-            {/* Real Google Sign-In Button Container */}
-            <div id="google-signin-btn" className="w-full flex justify-center min-h-[44px]"></div>
-            
-            {/* OR Divider */}
-            <div className="w-full flex items-center justify-between gap-3 text-slate-600 text-xs my-2 select-none">
-              <span className="h-px bg-slate-800 flex-1"></span>
-              <span>OR</span>
-              <span className="h-px bg-slate-800 flex-1"></span>
-            </div>
+          {authMode === 'login' ? (
+            <form onSubmit={handleLogin} className="space-y-5">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Email Address</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg glass-input text-sm text-slate-200"
+                  placeholder="name@company.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Password</label>
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full px-4 py-3 rounded-lg glass-input text-sm text-slate-200"
+                  placeholder="••••••••"
+                  required
+                />
+              </div>
+              <button 
+                type="submit" 
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 cursor-pointer text-sm"
+              >
+                Sign In
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleSignup} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Full Name</label>
+                <input 
+                  type="text" 
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg glass-input text-sm text-slate-200"
+                  placeholder="Jane Doe"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Email Address</label>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg glass-input text-sm text-slate-200"
+                  placeholder="name@company.com"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Password</label>
+                <input 
+                  type="password" 
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg glass-input text-sm text-slate-200"
+                  placeholder="Min 6 characters"
+                  required
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Target Role</label>
+                <input 
+                  type="text" 
+                  value={targetRole}
+                  onChange={e => setTargetRole(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg glass-input text-sm text-slate-200"
+                  placeholder="e.g. Backend Java Developer"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Experience Level</label>
+                <select 
+                  value={experienceLevel} 
+                  onChange={e => setExperienceLevel(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-lg glass-input text-sm text-slate-200"
+                >
+                  <option value="Junior">Junior (0-2 years)</option>
+                  <option value="Mid-Level">Mid-Level (2-5 years)</option>
+                  <option value="Senior">Senior (5+ years)</option>
+                </select>
+              </div>
+              <button 
+                type="submit" 
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 cursor-pointer text-sm"
+              >
+                Create Account
+              </button>
+            </form>
+          )}
 
-            {/* Guest/Demo Login Button */}
-            <button
-              onClick={() => handleGoogleLoginSimulated("guest@prepped.ai", "Guest User")}
-              className="w-full py-3 px-4 rounded-xl border border-indigo-500/20 bg-indigo-950/20 hover:bg-indigo-900/30 text-indigo-300 font-semibold transition-all shadow-lg hover:shadow-indigo-550/5 active:scale-[0.98] cursor-pointer text-xs flex items-center justify-center gap-2"
-            >
-              <span>🚀 Access as Guest (Demo Mode)</span>
-            </button>
-            
-            <p className="text-[11px] text-slate-500 text-center leading-relaxed">
-              Secure authentication powered by Google. By continuing, you agree to Prepped.AI's terms of service and privacy policy.
-            </p>
-
-            {/* Google Client ID Configuration Field */}
-            <div className="w-full mt-4 p-4 rounded-xl bg-slate-900/60 border border-white/5 space-y-3 text-left">
-              <label className="block text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
-                Google OAuth Client ID Configuration
-              </label>
-              <input
-                type="text"
-                placeholder="Enter your Client ID..."
-                value={googleClientId}
-                onChange={e => {
-                  setGoogleClientId(e.target.value);
-                  localStorage.setItem('google_client_id', e.target.value);
-                }}
-                className="w-full px-3 py-2 rounded-lg glass-input text-xs text-slate-300 placeholder-slate-500 focus:outline-none"
-              />
-              <p className="text-[10px] text-slate-500 leading-normal">
-                To run Google login on your own domain, create a Web Client ID in the <a href="https://console.cloud.google.com" target="_blank" rel="noreferrer" className="text-indigo-400 hover:underline">Google Cloud Console</a> and whitelist your URL: <code>https://prepped-ai-pratham.surge.sh</code> in Authorized JavaScript Origins.
-              </p>
-            </div>
+          <div className="mt-8 text-center text-sm">
+            {authMode === 'login' ? (
+              <span className="text-slate-400">
+                Don't have an account?{' '}
+                <button onClick={() => setAuthMode('signup')} className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer underline">
+                  Sign Up
+                </button>
+              </span>
+            ) : (
+              <span className="text-slate-400">
+                Already have an account?{' '}
+                <button onClick={() => setAuthMode('login')} className="text-indigo-400 hover:text-indigo-300 font-semibold cursor-pointer underline">
+                  Sign In
+                </button>
+              </span>
+            )}
           </div>
         </div>
       </div>
