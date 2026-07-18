@@ -1147,9 +1147,11 @@ export default function App() {
             <div className="space-y-6">
               <h2 className="text-xl font-bold text-slate-300">Question-by-Question Analysis</h2>
               
-              {selectedCompletedSession.questions.map((q, idx) => {
-                const feedback = parseAiFeedback(q.aiFeedback);
-                const isExpanded = expandedQuestionId === q.id;
+              {selectedCompletedSession.questions
+                .filter(q => q.userAnswer && q.userAnswer.trim() !== '')
+                .map((q, idx) => {
+                  const feedback = parseAiFeedback(q.aiFeedback);
+                  const isExpanded = expandedQuestionId === q.id;
 
                 return (
                   <div key={q.id} className="rounded-xl glass-card overflow-hidden border border-white/5 shadow-md">
