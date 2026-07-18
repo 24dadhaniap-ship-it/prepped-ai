@@ -78,4 +78,29 @@ public class AuthService {
                 .experienceLevel(savedUser.getExperienceLevel())
                 .build();
     }
+
+    @Transactional
+    public AuthResponse loginOrRegisterGoogleUser(String email, String name) {
+        User user = userRepository.findByEmail(email).orElseGet(() -> {
+            User newUser = User.builder()
+                    .email(email)
+                    .name(name != null ? name : "Google User")
+                    .passwordHash(passwordEncoder.encode(java.util.UUID.randomUUID().toString()))
+                    .targetRole("Software Engineer")
+                    .experienceLevel("Mid-Level")
+                    .build();
+            return userRepository.save(newUser);
+        });
+
+        String jwt = tokenProvider.generateToken(user.getEmail());
+
+        return AuthResponse.builder()
+                .token(jwt)
+                .userId(user.getId())
+                .email(user.getEmail())
+                .name(user.getName())
+                .targetRole(user.getTargetRole())
+                .experienceLevel(user.getExperienceLevel())
+                .build();
+    }
 }
