@@ -273,7 +273,6 @@ export default function App() {
   };
 
   const deleteSession = async (sessionId: string) => {
-    if (!window.confirm("Are you sure you want to delete this session? This will remove all associated AI feedback and responses.")) return;
     setLoading(true);
     setError(null);
     try {
