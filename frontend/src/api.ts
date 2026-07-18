@@ -46,6 +46,11 @@ export const api = {
         method: 'POST',
         body: JSON.stringify(user),
       }),
+    google: (credential: string) =>
+      request<any>('/auth/google', {
+        method: 'POST',
+        body: JSON.stringify({ credential }),
+      }),
   },
   interviews: {
     create: (data: { type: string; role: string; difficulty: string; questionsCount?: number }) =>
