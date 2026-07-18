@@ -1,0 +1,12 @@
+# Root Git Ignore
+node_modules/
+target/
+.idea/
+.vscode/
+.gemini/
+dist/
+.env
+*.log
+.mvn/wrapper/
+mvnw.cmd
+mvnw
