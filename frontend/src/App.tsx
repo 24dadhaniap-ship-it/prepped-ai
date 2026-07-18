@@ -868,7 +868,9 @@ export default function App() {
 
         {/* VIEW: CHAT ROOM */}
         {view === 'chat' && activeSession && (
-          <div className="max-w-4xl mx-auto rounded-2xl glass-card flex flex-col h-[75vh] relative overflow-hidden border border-white/10 shadow-2xl animate-fadeIn">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 h-[75vh] animate-fadeIn">
+            {/* Left: Chat Room (2 cols) */}
+            <div className="lg:col-span-2 rounded-2xl glass-card flex flex-col h-full relative overflow-hidden border border-white/10 shadow-2xl">
             {/* Chat Header */}
             <div className="p-4 border-b border-white/5 bg-slate-900/60 flex items-center justify-between">
               <div>
@@ -1002,6 +1004,82 @@ export default function App() {
                 </div>
               )}
             </div>
+            
+            {/* Close Left: Chat Room container */}
+            </div>
+
+            {/* Right: Live Analytics Side Panel (1 col) */}
+            <div className="rounded-2xl glass-card border border-white/10 shadow-2xl p-5 flex flex-col h-full overflow-y-auto space-y-6">
+              <div>
+                <span className="text-[10px] uppercase tracking-wider text-emerald-400 font-bold">Live Progress Tracking</span>
+                <h3 className="text-md font-extrabold text-slate-200 mt-0.5">Session Analytics</h3>
+                <p className="text-[11px] text-slate-400 leading-normal mt-1">Real-time metrics for your active interview</p>
+              </div>
+
+              {/* Live Score Trend */}
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-white/5 flex flex-col animate-fadeIn">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-400 mb-3 block">Live Performance Trend</span>
+                <div className="h-40 w-full flex items-center justify-center">
+                  {activeSession.questions.filter(q => q.score !== null).length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={activeSession.questions.filter(q => q.score !== null).map((q, idx) => ({
+                          name: `Q${idx + 1}`,
+                          score: q.score
+                        }))}
+                        margin={{ top: 5, right: 5, left: -25, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={9} />
+                        <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={9} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+                        <Line type="monotone" dataKey="score" stroke="#6366f1" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} name="Score" />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 text-center px-4 leading-normal">
+                      Submit answers and wait for evaluations to generate performance trend charts in real-time.
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Live Topic Breakdown */}
+              <div className="bg-slate-900/40 rounded-xl p-4 border border-white/5 flex flex-col animate-fadeIn">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 mb-3 block">Live Topic Breakdown</span>
+                <div className="h-40 w-full flex items-center justify-center">
+                  {activeSession.questions.filter(q => q.score !== null).length > 0 ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={Object.entries(
+                          activeSession.questions.filter(q => q.score !== null && q.score !== undefined).reduce((acc, q) => {
+                            const val = q.score as number;
+                            acc[q.topic] = acc[q.topic] ? [...acc[q.topic], val] : [val];
+                            return acc;
+                          }, {} as Record<string, number[]>)
+                        ).map(([topic, scores]) => ({
+                          name: topic,
+                          score: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length)
+                        }))}
+                        margin={{ top: 5, right: 5, left: -25, bottom: 5 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                        <XAxis dataKey="name" stroke="#94a3b8" fontSize={8} />
+                        <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={9} />
+                        <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+                        <Bar dataKey="score" fill="#a855f7" radius={[2, 2, 0, 0]} maxBarSize={20} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <p className="text-[11px] text-slate-500 text-center px-4 leading-normal">
+                      No topic categories evaluated yet. Charts will populate as you proceed.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+            
+            {/* Close main grid container */}
           </div>
         )}
 
