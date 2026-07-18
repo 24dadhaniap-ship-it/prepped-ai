@@ -882,14 +882,12 @@ export default function App() {
                 </h3>
               </div>
               <div className="flex items-center gap-3">
-                {activeSession.questionsCount === -1 && (
-                  <button
-                    onClick={endInterviewManually}
-                    className="px-3 py-1 text-xs font-bold text-red-200 hover:text-white bg-red-950/30 hover:bg-red-650/40 rounded-lg border border-red-500/20 shadow-md transition-all cursor-pointer active:scale-95 flex items-center gap-1.5 animate-fadeIn"
-                  >
-                    <span>🔴 End Practice</span>
-                  </button>
-                )}
+                <button
+                  onClick={endInterviewManually}
+                  className="px-3 py-1 text-xs font-bold text-red-200 hover:text-white bg-red-950/30 hover:bg-red-650/40 rounded-lg border border-red-500/20 shadow-md transition-all cursor-pointer active:scale-95 flex items-center gap-1.5"
+                >
+                  <span>🔴 End Practice</span>
+                </button>
                 <span className="text-xs font-semibold px-2.5 py-1 rounded-full border border-indigo-500/20 bg-indigo-950/40 text-indigo-300">
                   {activeSession.questionsCount === -1 
                     ? `Question ${currentQuestionIndex + 1}`
@@ -993,14 +991,6 @@ export default function App() {
                   <div className="flex items-center justify-between text-xs text-slate-400 px-1">
                     <div className="flex items-center gap-4">
                       <span>Press Enter to submit, Shift + Enter for new line.</span>
-                      {activeSession.questionsCount === -1 && (
-                        <button
-                          onClick={endInterviewManually}
-                          className="px-3 py-1 bg-red-950/40 hover:bg-red-600/30 text-red-200 hover:text-white rounded-lg border border-red-500/20 font-semibold transition-all cursor-pointer active:scale-95 animate-fadeIn"
-                        >
-                          🔴 End Interview
-                        </button>
-                      )}
                     </div>
                     <span>Aim for structured explanation (e.g. STAR method for behavioral).</span>
                   </div>
