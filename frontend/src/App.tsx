@@ -141,7 +141,13 @@ export default function App() {
       const stats = await api.dashboard.getStats();
       setDashboardStats(stats);
     } catch (err: any) {
-      setError(err.message || 'Failed to load dashboard statistics.');
+      if (err.message && (err.message.includes('401') || err.message.includes('Unauthorized') || err.message.includes('403'))) {
+        localStorage.clear();
+        setToken(null);
+        setUser(null);
+      } else {
+        setError(err.message || 'Failed to load dashboard statistics.');
+      }
     } finally {
       setLoading(false);
     }
