@@ -54,6 +54,11 @@ export default function App() {
   // Chat scroll anchor
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  // Ping backend on load to wake up free cloud instance immediately
+  useEffect(() => {
+    api.auth.ping().catch(() => {});
+  }, []);
+
   // Initialize Auth
   useEffect(() => {
     if (token) {

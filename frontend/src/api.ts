@@ -47,6 +47,10 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
 
 export const api = {
   auth: {
+    ping: () =>
+      request<any>('/auth/health', {
+        method: 'GET',
+      }),
     login: (credentials: any) =>
       request<any>('/auth/login', {
         method: 'POST',
