@@ -585,18 +585,25 @@ export default function App() {
           </div>
         )}
 
-        {/* Global Loading Spinner */}
+        {/* Non-blocking Floating Loading Badge */}
         {loading && view !== 'chat' && (
-          <div className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="w-12 h-12 rounded-full border-4 border-indigo-600/20 border-t-indigo-600 animate-spin"></div>
-              <p className="text-sm text-slate-400">Loading data...</p>
-            </div>
+          <div className="fixed bottom-6 right-6 z-50 bg-slate-900/90 border border-indigo-500/30 px-4 py-2.5 rounded-xl flex items-center gap-3 text-xs font-semibold text-indigo-300 shadow-2xl backdrop-blur-md animate-fadeIn">
+            <div className="w-4 h-4 border-2 border-t-indigo-400 border-indigo-900 rounded-full animate-spin shrink-0"></div>
+            <span>Syncing data with server...</span>
           </div>
         )}
 
         {/* VIEW: DASHBOARD */}
-        {view === 'dashboard' && dashboardStats && (
+        {view === 'dashboard' && (() => {
+          const stats = dashboardStats || {
+            overallAverageScore: 0,
+            totalSessions: 0,
+            currentStreak: 0,
+            recentSessions: [],
+            categoryAverages: {}
+          };
+
+          return (
           <div className="space-y-8 animate-fadeIn">
             
             {/* Top Row Grid */}
@@ -631,7 +638,7 @@ export default function App() {
                 <div>
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Average Score</h4>
                   <p className="text-3xl font-extrabold text-slate-200 mt-1">
-                    {dashboardStats.overallAverageScore ? `${dashboardStats.overallAverageScore}%` : '—'}
+                    {stats.overallAverageScore ? `${stats.overallAverageScore}%` : '—'}
                   </p>
                   <p className="text-xs text-slate-400 mt-1">Across all completed sessions</p>
                 </div>
@@ -644,7 +651,7 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Sessions Practiced</h4>
-                  <p className="text-3xl font-extrabold text-slate-200 mt-1">{dashboardStats.totalSessions}</p>
+                  <p className="text-3xl font-extrabold text-slate-200 mt-1">{stats.totalSessions}</p>
                   <p className="text-xs text-slate-400 mt-1">Active and completed interviews</p>
                 </div>
               </div>
@@ -656,7 +663,7 @@ export default function App() {
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Daily Streak</h4>
-                  <p className="text-3xl font-extrabold text-slate-200 mt-1">{dashboardStats.currentStreak} Days</p>
+                  <p className="text-3xl font-extrabold text-slate-200 mt-1">{stats.currentStreak} Days</p>
                   <p className="text-xs text-slate-400 mt-1">Keep the momentum going!</p>
                 </div>
               </div>
@@ -668,10 +675,10 @@ export default function App() {
               <div className="lg:col-span-2 rounded-2xl glass-card p-6 flex flex-col">
                 <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-6">Performance Trend</h3>
                 <div className="h-72 w-full">
-                  {dashboardStats.recentSessions.filter(s => s.overallScore !== null).length > 0 ? (
+                  {stats.recentSessions.filter(s => s.overallScore !== null).length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <LineChart
-                        data={[...dashboardStats.recentSessions]
+                        data={[...stats.recentSessions]
                           .filter(s => s.overallScore !== null)
                           .reverse()}
                         margin={{ top: 5, right: 10, left: -20, bottom: 5 }}
@@ -703,10 +710,10 @@ export default function App() {
               <div className="rounded-2xl glass-card p-6 flex flex-col">
                 <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-6">Category Breakdown</h3>
                 <div className="h-72 w-full">
-                  {Object.keys(dashboardStats.categoryAverages).length > 0 ? (
+                  {Object.keys(stats.categoryAverages).length > 0 ? (
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart
-                        data={Object.entries(dashboardStats.categoryAverages).map(([k, v]) => ({ name: k, score: v }))}
+                        data={Object.entries(stats.categoryAverages).map(([k, v]) => ({ name: k, score: v }))}
                         margin={{ top: 5, right: 5, left: -25, bottom: 5 }}
                       >
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -714,7 +721,7 @@ export default function App() {
                         <YAxis domain={[0, 100]} stroke="#94a3b8" fontSize={11} />
                         <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
                         <Bar dataKey="score" radius={[4, 4, 0, 0]} maxBarSize={40}>
-                          {Object.entries(dashboardStats.categoryAverages).map((_, index) => (
+                          {Object.entries(stats.categoryAverages).map((_, index) => (
                             <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#6366f1' : '#a855f7'} />
                           ))}
                         </Bar>
@@ -732,7 +739,7 @@ export default function App() {
             {/* Recent Sessions List */}
             <div className="rounded-2xl glass-card p-6">
               <h3 className="text-sm font-semibold text-slate-400 uppercase tracking-wider mb-6">Recent Sessions</h3>
-              {dashboardStats.recentSessions.length > 0 ? (
+              {stats.recentSessions.length > 0 ? (
                 <div className="overflow-x-auto">
                   <table className="w-full text-left text-sm border-collapse">
                     <thead>
@@ -746,7 +753,7 @@ export default function App() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
-                      {dashboardStats.recentSessions.map((session) => (
+                      {stats.recentSessions.map((session) => (
                         <tr key={session.id} className="group hover:bg-slate-800/25 transition-all">
                           <td className="py-4 pr-3 font-medium">
                             <span className="px-2.5 py-1 rounded-full text-xs font-semibold border border-white/5 bg-slate-900 text-indigo-300">
@@ -808,7 +815,8 @@ export default function App() {
               )}
             </div>
           </div>
-        )}
+          );
+        })()}
 
         {/* VIEW: SETUP WIZARD */}
         {view === 'wizard' && (

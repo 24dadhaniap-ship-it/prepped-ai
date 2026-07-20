@@ -10,39 +10,51 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     ...options.headers,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, {
-    ...options,
-    headers,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 20000); // 20s timeout
 
-  if (!response.ok) {
-    let errorMessage = `API error: ${response.status}`;
-    try {
-      const errorData = await response.json();
-      if (typeof errorData === 'string') {
-        errorMessage = errorData;
-      } else if (errorData && typeof errorData === 'object') {
-        if (errorData.message) {
-          errorMessage = errorData.message;
-        } else {
-          const values = Object.values(errorData).filter(v => typeof v === 'string');
-          if (values.length > 0) {
-            errorMessage = values.join('. ');
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, {
+      ...options,
+      headers,
+      signal: options.signal || controller.signal,
+    });
+    clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      let errorMessage = `API error: ${response.status}`;
+      try {
+        const errorData = await response.json();
+        if (typeof errorData === 'string') {
+          errorMessage = errorData;
+        } else if (errorData && typeof errorData === 'object') {
+          if (errorData.message) {
+            errorMessage = errorData.message;
+          } else {
+            const values = Object.values(errorData).filter(v => typeof v === 'string');
+            if (values.length > 0) {
+              errorMessage = values.join('. ');
+            }
           }
         }
+      } catch {
+        // Ignore fallback
       }
-    } catch {
-      // Ignore fallback
+      throw new Error(errorMessage);
     }
-    throw new Error(errorMessage);
-  }
 
-  // Handle case where body is empty (e.g. 204 or some rate limit responses)
-  const contentType = response.headers.get('content-type');
-  if (contentType && contentType.includes('application/json')) {
-    return response.json() as Promise<T>;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json() as Promise<T>;
+    }
+    return {} as T;
+  } catch (err: any) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error('Server response timed out. Please check your connection and try again.');
+    }
+    throw err;
   }
-  return {} as T;
 }
 
 export const api = {
