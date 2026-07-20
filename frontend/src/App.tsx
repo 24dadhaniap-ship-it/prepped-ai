@@ -145,9 +145,18 @@ export default function App() {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
+    if (!email.trim()) {
+      setAuthError('Please enter your email address.');
+      return;
+    }
+    if (!password) {
+      setAuthError('Please enter your password.');
+      return;
+    }
+
     setLoading(true);
     try {
-      const res = await api.auth.login({ email, password });
+      const res = await api.auth.login({ email: email.trim().toLowerCase(), password });
       localStorage.setItem('token', res.token);
       localStorage.setItem('userEmail', res.email);
       localStorage.setItem('userName', res.name);
@@ -166,14 +175,28 @@ export default function App() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setAuthError(null);
+
+    if (!name.trim()) {
+      setAuthError('Please enter your full name.');
+      return;
+    }
+    if (!email.trim() || !email.includes('@')) {
+      setAuthError('Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 6) {
+      setAuthError('Password must be at least 6 characters long.');
+      return;
+    }
+
     setLoading(true);
     try {
       const res = await api.auth.signup({
-        email,
+        email: email.trim().toLowerCase(),
         password,
-        name,
-        targetRole,
-        experienceLevel
+        name: name.trim(),
+        targetRole: targetRole || 'Backend Java Developer',
+        experienceLevel: experienceLevel || 'Mid-Level'
       });
       localStorage.setItem('token', res.token);
       localStorage.setItem('userEmail', res.email);
@@ -341,9 +364,20 @@ export default function App() {
           </div>
 
           {authError && (
-            <div className="mb-6 p-4 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-sm flex items-start gap-2">
-              <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
-              <span>{authError}</span>
+            <div className="mb-6 p-4 rounded-lg bg-red-950/40 border border-red-800/50 text-red-300 text-sm flex flex-col gap-2 animate-fadeIn">
+              <div className="flex items-start gap-2">
+                <AlertCircle className="w-5 h-5 shrink-0 mt-0.5" />
+                <span className="leading-relaxed">{authError}</span>
+              </div>
+              {authError.toLowerCase().includes('already in use') && (
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode('login'); setAuthError(null); }}
+                  className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 font-semibold underline text-left cursor-pointer"
+                >
+                  Click here to Sign In with this email &rarr;
+                </button>
+              )}
             </div>
           )}
 
@@ -373,9 +407,15 @@ export default function App() {
               </div>
               <button 
                 type="submit" 
-                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 cursor-pointer text-sm"
+                disabled={loading}
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-900/50 disabled:cursor-not-allowed text-white font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 cursor-pointer text-sm flex items-center justify-center gap-2"
               >
-                Sign In
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-t-white border-white/30 rounded-full animate-spin"></div>
+                    <span>Signing In...</span>
+                  </>
+                ) : 'Sign In'}
               </button>
             </form>
           ) : (
@@ -437,9 +477,15 @@ export default function App() {
               </div>
               <button 
                 type="submit" 
-                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 cursor-pointer text-sm"
+                disabled={loading}
+                className="w-full py-3 rounded-lg bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-900/50 disabled:cursor-not-allowed text-white font-semibold transition-all shadow-lg hover:shadow-indigo-500/20 active:scale-95 cursor-pointer text-sm flex items-center justify-center gap-2"
               >
-                Create Account
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-t-white border-white/30 rounded-full animate-spin"></div>
+                    <span>Creating Account...</span>
+                  </>
+                ) : 'Create Account'}
               </button>
             </form>
           )}

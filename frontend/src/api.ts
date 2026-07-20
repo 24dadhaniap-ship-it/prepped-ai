@@ -19,7 +19,18 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     let errorMessage = `API error: ${response.status}`;
     try {
       const errorData = await response.json();
-      errorMessage = errorData.message || errorMessage;
+      if (typeof errorData === 'string') {
+        errorMessage = errorData;
+      } else if (errorData && typeof errorData === 'object') {
+        if (errorData.message) {
+          errorMessage = errorData.message;
+        } else {
+          const values = Object.values(errorData).filter(v => typeof v === 'string');
+          if (values.length > 0) {
+            errorMessage = values.join('. ');
+          }
+        }
+      }
     } catch {
       // Ignore fallback
     }
